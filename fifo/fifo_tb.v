@@ -19,14 +19,14 @@ reg[31:0] din;
 
 `ifdef ASYNC
 async_fifo dut(
+	.rst(~arst_n),
 	.rClk(clkb),
-	.wClk(clka),
-	.arst_n(arst_n),
 	.rEn(rd_en),
-	.wEn(wr_en),
 	.rData(dout),
-	.wData(din),
 	.empty(empty),
+	.wClk(clka),
+	.wEn(wr_en),
+	.wData(din),
 	.full(full)
 );
 `else
