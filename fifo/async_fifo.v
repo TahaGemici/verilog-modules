@@ -1,12 +1,10 @@
-`define grayCode(x) {x[1], x[1]^x[0]}
-
-module async_fifo(rst, rClk, rEn, rData, empty, wClk, wEn, wData, full);
+module async_fifo(arst_n, rClk, rEn, rData, empty, wClk, wEn, wData, full);
 	parameter DATA_WIDTH = 32;
 	parameter DEPTH = 1024; // MUST BE POWER OF 2 !!!
 	localparam ADDR_WIDTH = $clog2(DEPTH); // actual width = ADDR_WIDTH + 1
 	
   //async to both domains
-  input rst;
+  input arst_n;
 
 	// rClk domain
 	input rClk;
@@ -20,87 +18,62 @@ module async_fifo(rst, rClk, rEn, rData, empty, wClk, wEn, wData, full);
 	input[DATA_WIDTH-1:0] wData;
 	output full;
 
-reg rst_rClk, rst_wClk;
-reg rst_rClk1, rst_wClk1;
-
-always @(posedge wClk) begin
-	rst_wClk1 <= rst;
-	rst_wClk <= rst_wClk1;
-end
-
-always @(posedge rClk) begin
-	rst_rClk1 <= rst;
-	rst_rClk <= rst_rClk1;
-end
-
 reg[DATA_WIDTH-1:0] mem[0:DEPTH-1];
 
 // rClk domain
 reg empty, empty_nxt;
-reg[1:0] wPtr_rClk_gray, wPtr_rClk_gray_nxt;
-reg[ADDR_WIDTH:0] rPtr, rPtr_nxt, wPtr_rClk, wPtr_rClk_nxt;
+reg[ADDR_WIDTH:0] rPtr, rPtr_nxt, wPtr_rClk_gray, wPtr_rClk_gray_nxt;
+reg[ADDR_WIDTH:0] wPtr;
 
 assign rData = mem[rPtr[ADDR_WIDTH-1:0]];
-always @(posedge rClk) begin
+wire[ADDR_WIDTH:0] wPtr_gray, wPtr_bin;
+bin2gray #(ADDR_WIDTH+1) wPtr_gray_inst (.bin(wPtr), .gray(wPtr_gray));
+gray2bin #(ADDR_WIDTH+1) wPtr_bin_inst (.gray(wPtr_rClk_gray), .bin(wPtr_bin));
+always @(posedge rClk or negedge arst_n) begin
   empty <= empty_nxt;
   rPtr <= rPtr_nxt;
-
-  // crossed over from wClk domain 
-  wPtr_rClk_gray_nxt <= `grayCode(wPtr);
+  wPtr_rClk_gray_nxt <= wPtr_gray;
   wPtr_rClk_gray <= wPtr_rClk_gray_nxt;
-  wPtr_rClk <= wPtr_rClk_nxt;
+  if(~arst_n) begin
+    rPtr <= 0;
+    empty <= 1;
+    wPtr_rClk_gray_nxt <= 0;
+    wPtr_rClk_gray <= 0;
+  end
 end
 
 always @* begin
-  wPtr_rClk_nxt[ADDR_WIDTH:2] = wPtr_rClk[ADDR_WIDTH:2];
-  wPtr_rClk_nxt[1:0] = `grayCode(wPtr_rClk_gray);
-  if(wPtr_rClk[1:0] > wPtr_rClk_nxt[1:0]) begin
-	  wPtr_rClk_nxt[ADDR_WIDTH:2] = wPtr_rClk[ADDR_WIDTH:2] + 1;
-  end
-  
   rPtr_nxt = rPtr + rEn;
-  empty_nxt = rPtr_nxt == wPtr_rClk_nxt;
-  if(rst_rClk)begin
-    rPtr_nxt = 0;
-    wPtr_rClk_nxt = 0;
-    wPtr_rClk_gray_nxt = 0;
-    empty_nxt = 1;
-    rPtr_nxt = 0;
-  end
+  empty_nxt = rPtr_nxt == wPtr_bin;
 end
 
 // wClk domain
 reg full, full_nxt;
-reg[1:0] rPtr_wClk_gray, rPtr_wClk_gray_nxt;
-reg[ADDR_WIDTH:0] wPtr, wPtr_nxt, rPtr_wClk, rPtr_wClk_nxt;
+reg[ADDR_WIDTH:0] wPtr_nxt, rPtr_wClk_gray, rPtr_wClk_gray_nxt;
 
+wire[ADDR_WIDTH:0] rPtr_gray, rPtr_bin;
+bin2gray #(ADDR_WIDTH+1) rPtr_gray_inst (.bin(rPtr), .gray(rPtr_gray));
+gray2bin #(ADDR_WIDTH+1) rPtr_bin_inst (.gray(rPtr_wClk_gray), .bin(rPtr_bin));
 always @(posedge wClk) begin
+  mem[wPtr[ADDR_WIDTH-1:0]] <= wEn ? wData : mem[wPtr[ADDR_WIDTH-1:0]];
+end
+
+always @(posedge wClk or negedge arst_n) begin
   full <= full_nxt;
   wPtr <= wPtr_nxt;
-  mem[wPtr[ADDR_WIDTH-1:0]] <= wEn ? wData : mem[wPtr[ADDR_WIDTH-1:0]];
-  
-  // crossed over from rClk domain 
-  rPtr_wClk_gray_nxt <= `grayCode(rPtr);
+  rPtr_wClk_gray_nxt <= rPtr_gray;
   rPtr_wClk_gray <= rPtr_wClk_gray_nxt;
-  rPtr_wClk <= rPtr_wClk_nxt;
+  if(~arst_n) begin
+    wPtr <= 0;
+    full <= 0;
+    rPtr_wClk_gray_nxt <= 0;
+    rPtr_wClk_gray <= 0;
+  end
 end
 
 always @* begin
-  rPtr_wClk_nxt[ADDR_WIDTH:2] = rPtr_wClk[ADDR_WIDTH:2];
-  rPtr_wClk_nxt[1:0] = `grayCode(rPtr_wClk_gray);
-  if(rPtr_wClk[1:0] > rPtr_wClk_nxt[1:0]) begin
-	  rPtr_wClk_nxt[ADDR_WIDTH:2] = rPtr_wClk[ADDR_WIDTH:2] + 1;
-  end
-  
   wPtr_nxt = wPtr + wEn;
-  full_nxt = {~wPtr_nxt[ADDR_WIDTH], wPtr_nxt[ADDR_WIDTH-1:0]} == rPtr_wClk_nxt;
-  if(rst_wClk)begin
-    wPtr_nxt = 0;
-    rPtr_wClk_nxt = 0;
-    rPtr_wClk_gray_nxt = 0;
-    full_nxt = 0;
-    wPtr_nxt = 0;
-  end
+  full_nxt = {~wPtr_nxt[ADDR_WIDTH], wPtr_nxt[ADDR_WIDTH-1:0]} == rPtr_bin;
 end
 
 endmodule

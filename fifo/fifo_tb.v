@@ -14,12 +14,12 @@ reg clka = 0, clkb = 0;
 integer i, j;
 wire empty, full;
 wire[31:0] dout;
-reg rd_en, wr_en, aresetn;
+reg rd_en, wr_en, arst_n;
 reg[31:0] din;
 
 `ifdef ASYNC
 async_fifo dut(
-	.rst(~arst_n),
+	.arst_n(arst_n),
 	.rClk(clkb),
 	.rEn(rd_en),
 	.rData(dout),
@@ -71,9 +71,9 @@ initial begin
 		begin
 			wr_en = 0;
 			rd_en = 0;
-			rst = 1;
+			arst_n = 0;
 			#500;
-			rst = 0;
+			arst_n = 1;
 			#400;
 			@(negedge clkb);
 			forever begin
