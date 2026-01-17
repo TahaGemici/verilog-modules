@@ -22,23 +22,23 @@ reg[DATA_WIDTH-1:0] mem[0:DEPTH-1];
 
 // rClk domain
 reg empty, empty_nxt;
-reg[ADDR_WIDTH:0] rPtr, rPtr_nxt, wPtr_rClk_gray, wPtr_rClk_gray_nxt;
+reg[ADDR_WIDTH:0] rPtr, rPtr_nxt;
 reg[ADDR_WIDTH:0] wPtr;
 
 assign rData = mem[rPtr[ADDR_WIDTH-1:0]];
 wire[ADDR_WIDTH:0] wPtr_gray, wPtr_bin;
 bin2gray #(ADDR_WIDTH+1) wPtr_gray_inst (.bin(wPtr), .gray(wPtr_gray));
+
+wire[ADDR_WIDTH:0] wPtr_rClk_gray;
+cdc_sync #(ADDR_WIDTH+1) wPtr_rClk_gray_sync (.clk(rClk), .arst_n(arst_n), .d(wPtr_gray), .q(wPtr_rClk_gray));
+
 gray2bin #(ADDR_WIDTH+1) wPtr_bin_inst (.gray(wPtr_rClk_gray), .bin(wPtr_bin));
 always @(posedge rClk or negedge arst_n) begin
   empty <= empty_nxt;
   rPtr <= rPtr_nxt;
-  wPtr_rClk_gray_nxt <= wPtr_gray;
-  wPtr_rClk_gray <= wPtr_rClk_gray_nxt;
   if(~arst_n) begin
     rPtr <= 0;
     empty <= 1;
-    wPtr_rClk_gray_nxt <= 0;
-    wPtr_rClk_gray <= 0;
   end
 end
 
@@ -49,10 +49,14 @@ end
 
 // wClk domain
 reg full, full_nxt;
-reg[ADDR_WIDTH:0] wPtr_nxt, rPtr_wClk_gray, rPtr_wClk_gray_nxt;
+reg[ADDR_WIDTH:0] wPtr_nxt;
 
 wire[ADDR_WIDTH:0] rPtr_gray, rPtr_bin;
 bin2gray #(ADDR_WIDTH+1) rPtr_gray_inst (.bin(rPtr), .gray(rPtr_gray));
+
+wire[ADDR_WIDTH:0] rPtr_wClk_gray;
+cdc_sync #(ADDR_WIDTH+1) rPtr_wClk_gray_sync (.clk(wClk), .arst_n(arst_n), .d(rPtr_gray), .q(rPtr_wClk_gray));
+
 gray2bin #(ADDR_WIDTH+1) rPtr_bin_inst (.gray(rPtr_wClk_gray), .bin(rPtr_bin));
 always @(posedge wClk) begin
   mem[wPtr[ADDR_WIDTH-1:0]] <= wEn ? wData : mem[wPtr[ADDR_WIDTH-1:0]];
@@ -61,13 +65,9 @@ end
 always @(posedge wClk or negedge arst_n) begin
   full <= full_nxt;
   wPtr <= wPtr_nxt;
-  rPtr_wClk_gray_nxt <= rPtr_gray;
-  rPtr_wClk_gray <= rPtr_wClk_gray_nxt;
   if(~arst_n) begin
     wPtr <= 0;
     full <= 0;
-    rPtr_wClk_gray_nxt <= 0;
-    rPtr_wClk_gray <= 0;
   end
 end
 
