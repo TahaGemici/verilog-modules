@@ -9,11 +9,12 @@ module clk_div #(
     reg[$clog2(DIV_FACTOR)-1:0] counter, counter_nxt;
 
     always @(posedge clk_in or negedge arst_n) begin
-        counter <= counter_nxt;
-        clk_out <= clk_out_nxt;
         if(~arst_n) begin
             counter <= 0;
             clk_out <= 0;
+        end else begin
+            counter <= counter_nxt;
+            clk_out <= clk_out_nxt;
         end
     end
 

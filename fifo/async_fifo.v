@@ -34,11 +34,12 @@ cdc_sync #(ADDR_WIDTH+1) wPtr_rClk_gray_sync (.clk(rClk), .arst_n(arst_n), .d(wP
 
 gray2bin #(ADDR_WIDTH+1) wPtr_bin_inst (.gray(wPtr_rClk_gray), .bin(wPtr_bin));
 always @(posedge rClk or negedge arst_n) begin
-  empty <= empty_nxt;
-  rPtr <= rPtr_nxt;
   if(~arst_n) begin
     rPtr <= 0;
     empty <= 1;
+  end else begin
+    empty <= empty_nxt;
+    rPtr <= rPtr_nxt;
   end
 end
 
@@ -63,11 +64,12 @@ always @(posedge wClk) begin
 end
 
 always @(posedge wClk or negedge arst_n) begin
-  full <= full_nxt;
-  wPtr <= wPtr_nxt;
   if(~arst_n) begin
     wPtr <= 0;
     full <= 0;
+  end else begin
+    full <= full_nxt;
+    wPtr <= wPtr_nxt;
   end
 end
 
