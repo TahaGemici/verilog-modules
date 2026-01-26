@@ -1,1 +1,1 @@
-# verilog-modules
+# verilog-common
