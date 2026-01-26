@@ -18,16 +18,18 @@ module axi4lite_read_slave (
 
 localparam OKAY = 2'b00, SLVERR = 2'b10;
 
-reg arready_nxt, rvalid_nxt;
+reg wakeup, arready_nxt, rvalid_nxt;
 reg[1:0] rresp_nxt;
 reg[31:0] rdata_nxt;
 always @(posedge aclk or negedge aresetn) begin
     if(~aresetn) begin
-        arready <= 1'b1;
+        wakeup <= 1'b1;
+        arready <= 1'b0;
         rvalid <= 1'b0;
         rdata <= 32'b0;
         rresp <= OKAY;
     end else begin
+        wakeup <= 1'b0;
         arready <= arready_nxt;
         rvalid <= rvalid_nxt;
         rdata <= rdata_nxt;
@@ -47,12 +49,12 @@ always @* begin
 
     rvalid_nxt = rvalid;
     if((~arready) & (~stall)) begin
-        rvalid_nxt = 1'b1;
+        rvalid_nxt = ~wakeup;
+        arready_nxt = 1'b1;
     end
 
     if(rready & rvalid) begin
         rvalid_nxt = 1'b0;
-        arready_nxt = 1'b1;
     end
 end
 

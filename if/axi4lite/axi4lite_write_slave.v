@@ -24,14 +24,15 @@ module axi4lite_write_slave (
 
 localparam OKAY = 2'b00, SLVERR = 2'b10;
 
-reg awready_nxt, wready_nxt, bvalid_nxt;
+reg wakeup, awready_nxt, wready_nxt, bvalid_nxt;
 reg[1:0] bresp_nxt;
 reg[3:0] strb, strb_nxt, en_nxt;
 reg[31:0] addr_nxt, data_nxt;
 always @(posedge aclk or negedge aresetn) begin
     if(~aresetn) begin
-        awready <= 1'b1;
-        wready <= 1'b1;
+        wakeup <= 1'b1;
+        awready <= 1'b0;
+        wready <= 1'b0;
         bvalid <= 1'b0;
         bresp <= OKAY;
         strb <= 4'b0;
@@ -39,6 +40,7 @@ always @(posedge aclk or negedge aresetn) begin
         data <= 32'b0;
         en <= 4'b0;
     end else begin
+        wakeup <= 1'b0;
         awready <= awready_nxt;
         wready <= wready_nxt;
         bvalid <= bvalid_nxt;
@@ -73,13 +75,13 @@ always @* begin
     bvalid_nxt = bvalid;
     if((~awready) & (~wready) & (~stall)) begin
         if(bresp == OKAY) en_nxt = strb;
-        bvalid_nxt = 1'b1;
+        bvalid_nxt = ~wakeup;
+        awready_nxt = 1'b1;
+        wready_nxt = 1'b1;
     end
 
     if(bvalid & bready) begin
         bvalid_nxt = 1'b0;
-        awready_nxt = 1'b1;
-        wready_nxt = 1'b1;
     end
 end
 endmodule

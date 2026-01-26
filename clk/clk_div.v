@@ -1,12 +1,11 @@
-module clk_div #(
-    parameter DIV_FACTOR = 2 // Must be even
-)(
+module clk_div (
     input clk_in,
     input arst_n,
+    input[31:0] prescaler,
     output reg clk_out
 );
     reg clk_out_nxt;
-    reg[$clog2(DIV_FACTOR)-1:0] counter, counter_nxt;
+    reg[31:0] counter, counter_nxt;
 
     always @(posedge clk_in or negedge arst_n) begin
         if(~arst_n) begin
@@ -21,7 +20,7 @@ module clk_div #(
     always @* begin
         counter_nxt = counter + 1;
         clk_out_nxt = clk_out;
-        if(counter == DIV_FACTOR/2 - 1) begin
+        if(counter >= (prescaler[31:1] - 1)) begin
             counter_nxt = 0;
         end
         if(counter == 0) begin
